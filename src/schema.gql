@@ -1,0 +1,42 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Arenda {
+  id: Int!
+  item: String!
+  renter: String!
+  startDate: String!
+  endDate: String!
+  pricePerDay: Int!
+  status: String!
+}
+
+type Query {
+  arendalar: [Arenda!]!
+  arenda(id: Int!): Arenda
+}
+
+type Mutation {
+  createArenda(input: CreateArendaInput!): Arenda!
+  updateArenda(input: UpdateArendaInput!): Arenda
+  removeArenda(id: Int!): Boolean!
+}
+
+input CreateArendaInput {
+  item: String!
+  renter: String!
+  startDate: String!
+  endDate: String!
+  pricePerDay: Int!
+}
+
+input UpdateArendaInput {
+  id: Int!
+  item: String
+  renter: String
+  startDate: String
+  endDate: String
+  pricePerDay: Int
+  status: String
+}
