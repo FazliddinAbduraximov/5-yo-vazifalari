@@ -2,39 +2,104 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chat</title>
+  <title>Chat + Map + Notify</title>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <link rel="stylesheet" href="./style.css">
+
+  <!-- Leaflet for map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body>
   <div class="container">
-    <h2>Chat</h2>
+    <h2>Mini App</h2>
+
     <div id="form">
-      <input id="sen" placeholder="Sender" />
-      <input id="text" placeholder="Message" />
-      <button onclick="sendMessage()">Send</button>
+      <input id="sen" placeholder="Ism" />
+      <input id="text" placeholder="Xabar" />
+      <button onclick="sendMessage()">Yubor</button>
+      <button onclick="sendLocation()">Joylashuv</button>
     </div>
+
+    <div class="notify-control">
+      <label><input type="checkbox" id="notify"> Bildirishnomalar</label>
+    </div>
+
     <ul id="messages"></ul>
+
+    <div id="map"></div>
   </div>
 
   <script>
     const socket = io("http://localhost:3000");
+    const messages = document.getElementById("messages");
+    const notifyToggle = document.getElementById("notify");
 
+    // === CHAT ===
     function sendMessage() {
       const sender = document.getElementById("sen").value;
       const text = document.getElementById("text").value;
       if (!sender || !text) return;
 
-      socket.emit("send_message", { sender, text });
-
+      socket.emit("send_message", { sender, text, time: Date.now() });
       document.getElementById("text").value = "";
     }
 
     socket.on("receive_message", (msg) => {
       const li = document.createElement("li");
-      li.innerText = `${msg.sender}: ${msg.text}`;
-      document.getElementById("messages").appendChild(li);
+      const t = new Date(msg.time).toLocaleTimeString();
+      li.innerText = `${t} | ${msg.sender}: ${msg.text}`;
+      messages.appendChild(li);
+      if (notifyToggle.checked) showNotify("Yangi xabar", msg.sender + ": " + msg.text);
+    });
+
+    // === NOTIFICATION ===
+    let notifyAllowed = false;
+    if ("Notification" in window) {
+      Notification.requestPermission().then(p => {
+        notifyAllowed = p === "granted";
+      });
+    }
+
+    function showNotify(title, body) {
+      if (notifyAllowed) {
+        new Notification(title, { body });
+      }
+    }
+
+    socket.on("notify", (obj) => {
+      if (notifyToggle.checked) showNotify(obj.title, obj.body);
+    });
+
+    // === MAP ===
+    const map = L.map("map").setView([41.31, 69.24], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
+
+    const markers = new Map();
+
+    function sendLocation() {
+      const sender = document.getElementById("sen").value;
+      if (!sender) return alert("Avval ism kiriting!");
+
+      if (!navigator.geolocation) return alert("Geolokatsiya qo‘llab-quvvatlanmaydi!");
+
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        socket.emit("location_update", { sender, lat, lng });
+      });
+    }
+
+    socket.on("location_update", (loc) => {
+      if (markers.has(loc.sender)) {
+        markers.get(loc.sender).setLatLng([loc.lat, loc.lng]);
+      } else {
+        const m = L.marker([loc.lat, loc.lng]).addTo(map).bindPopup(loc.sender);
+        markers.set(loc.sender, m);
+      }
     });
   </script>
 </body>
